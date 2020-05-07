@@ -1,28 +1,31 @@
 ## `R E S P E C T` : Find Out What It Means To The Coq Standard Library
 
-### Lucas Silver
+### An Introduction To Rewriting In Coq
+#### Lucas Silver
 #### PL Club at the University of Pennsylvania
 
 This blog post is a companion to the following [code](https://github.com/lag47/Rewrite-Tutorial). Please follow along with that file.
 
 Prerequisites:
-* Basic Mathematical Maturity: At least one proof based mathematics course
 * Basic Coq Knowledge: at least through `Relations.v` from [Software Foundations](https://softwarefoundations.cis.upenn.edu/lf-current/toc.html)
-* Basic Type Class Knowledge: background from any language should be fine
+* Basic Typeclasses Knowledge: background from any language should be fine
 
+### What Is Rewriting?
 
-In informal mathematics rewriting is so ubiquitous that it is not really even explicitly taught. We do it all the time without bothering to justify it. However, in a formal logical system like Coq, we cannot do anything without justification. In order to justify something, we must first understand what it is. 
+In this blog post, I will introduce the technique of term <em>rewriting</em>, implemented by the `rewrite` tactic in Coq. Informally, rewriting is the process of replacing a term in a mathematical proposition in a way that preserves the correctness of that statement. For instance, supposed I have a natural number `n` and way to prove that `n * 2` is even. To prove this, it suffices to show that `2 * n` is even, so we can rewrite `n * 2` into `2 * n` in such a goal. The reason we are allowed to do this is that `2 * n = n * 2`, and the reason we may want to do this is that, because of how multiplication is inductively defined, `2 * n` is an easier to work with expression. In this post, I will discuss how to use the `rewrite` tactic with arbitrary equivalence relations.
+
+In informal mathematics rewriting is so ubiquitous that it is not really even explicitly taught. We do it all the time without bothering to justify it. However, in a formal logical system like Coq, we cannot do anything without justification. In order to construct justifications for rewriting, we must first understand  exactly rewriting is. 
 
 Suppose, we have some relation `R : A -> A -> Prop`, two values `x y : A` such that `R x y`. We have some context `K`. Our goal is `K[x]` and we would prefer our goal to be `K[y]`. To do this we want to rewrite `x` into `y` under `K`. In order for this to be justified, we need to know that as long as we know `R x y`, we also know that `K[y]` implies `K[x]`. To introduce some other vocabularly, to say `R` is proper with respect to `K` is the same as the previous sentence.
+
+### Rewriting With =
 
 The `=` relation in Coq is strong enough that it is proper under any relation. This means that, if we know `x = y`, then for any ontext `K`, we can transform a goal of `K[x]` into one of `K[y]`
 
 
-These notions are implemented as type classes in the Coq standard library. We will go over the exact instances we will need to provide later. For now,just keep in mind that Coq has provided a series of tactics that, given certain type class instances, will do all of the justification work for you, and transform your goal for you.
+These notions of respect and proper are implemented as type classes in the Coq standard library. We will go over the exact instances we will need to provide later. For now, just keep in mind that Coq has provided a series of tactics that, given certain type class instances, will do all of the justification work for you, and transform your goal for you.
 
-Luckily, the Coq's `rewrite` tactic can make providing this justification easier. 
-
-So let us go through some concrete examples showing the strength of rewriting. Consider the following proposition and proof script
+Let's go through some concrete examples showing the strength of rewriting . Consider the following proposition and proof script
 
 ```coq
 Goal forall (a b c d : Z), a = b -> b = c -> c = d -> a = d.
@@ -31,7 +34,7 @@ Proof.
 Qed.
 ```
 
-That is essentially just the transitivity property of equality extendend to 4 elements. Note how we prove this using two rewrites instead of two applications of the transitivity property.
+That is essentially just the transitivity property of equality extended to 4 elements. Note how we prove this using two rewrites instead of two applications of the transitivity property. This instance of rewriting happens when the context is simply the relation we are rewriting with. This simplifies the whole rewriting process.
 
 Now let's look at a slightly more complicated example. The following proposition is trivially simple if we are given the ability to rewrite.
 
@@ -48,9 +51,57 @@ Unlike the previous example, it is not immediately obvious how we would prove th
 
 Now that we've seen what we can do with rewriting in its most flexible and powerful form, let's see how we can recover that for other relations.
 
+### Rewriting Under Arbitrary Equivalences
+
 Suppose we have an integer `k` and consider modular arithmetic modulo `k`. So our relation will be `x ≡ y` means that `x` is equivalent to `y` mod `k`. The definition given in the file is equivalent to a division based definition and comes for [Bezout coefficients](https://en.wikipedia.org/wiki/B%C3%A9zout%27s_identity). However, this is not really important for our purposes. `≡` is the notation we will be using for the relation, defined in the file as `equiv`.
 
-We can start by showing the `≡` is an equivalence relation and registering that fact as a type class.
+To prove that a relation is an equivalence relation, we must show that it is reflexive, symmetry and transitive. In isolation, proving each of these properties enables useful tactics. `reflexivity` lets you discharge goals of the form `x ≡ x`, and `symmetry` lets you change goals and hypotheses from `x ≡ y` to `y ≡ x`. In order to do the most basic rewriting, all that you need is the transitive property.
+
+You can declare the typeclass instance with the following code.
+
+```coq
+Instance trans_equiv : Transitive equiv.
+Proof.
+  ...
+Qed.
+```
+
+The proof is unrelated to the subject of this post, so it has been left out. We can now demonstrate some simple rewriting.
+
+```coq
+Goal forall (a b c : Z), a ≡ b -> b ≡ c -> a ≡ c.
+Proof.
+  intros. rewrite H. Fail (rewrite <- H).
+  auto.
+Qed.
+```
+
+This is just a statement of the transitive property for the relation. Run the code for yourself, and note that we can rewrite `a` into `b`, but when we try to rewrite `b` back into `a` it fails. This is because, since we only have the transitivity of this relation registered at the moment, rewriting only works in certain directions. For goals, Terms on the left side of the relation can be rewritten into terms on the right, and terms on the right side of the relation can be rewritten into terms on the left. For hypotheses each of the previous rules is reversed. 
+
+To build up some intuition practice rewriting with relations that have only been declared transitive and not symmetric. A good example is the `<=` relation.
+
+The relation we are working with is symmetric as well. Registering this typeclass will allow us to rewrite in any direction in both goals and hypotheses.
+
+```coq
+Instance sym_equiv : Symmetric equiv.
+Proof. 
+  ...
+Qed.
+```
+
+Now that we have this instance, we can return to the previous example.
+
+```coq
+Goal forall (a b c : Z), a ≡ b -> b ≡ c -> a ≡ c.
+Proof.
+  intros. rewrite H. rewrite <- H. rewrite <- H0.
+  rewrite H0. rewrite H. auto.
+Qed.
+```
+
+Note that some of these rewrites would not have worked previously.
+
+In general, you can just declare the relation to be an equivalence relation in order to get all the benefits of the constituent properties without declaring them separately.
 
 ```coq
 Instance equiv_equiv : Equivalence equiv.
@@ -59,7 +110,7 @@ Proof.
 Qed.
 ```
 
-The proof is unrelated to the subject of this post, so it has been left out. Now we can try something similar to our first example. Once again we will be able to complete the proof only using rewrites, without needing to specifically apply any lemmas or needing to know anything about the structure of our relation.
+ Now we can try something similar to our first example. Once again we will be able to complete the proof only using rewrites, without needing to specifically apply any lemmas or needing to know anything about the structure of our relation.
 
 ```coq
 Goal forall (a b c d : Z), a ≡ b -> b ≡ c -> c ≡ d -> a ≡ d.
@@ -69,6 +120,8 @@ Qed.
 ```
 
 In fact, all we needed to do the above rewrites was the transitivity of `≡`. You can rearrange the companion file and see this for yourself. However, the fact that it is an equivalence relation gives us some extra useful tactics. If we want to flip the relation in either a goal or a hypothesis, we can use the `symmetry` tactic, and we can use `reflexivity` to prove that too expressions that are syntactically equal are related by `≡`.
+
+### Rewriting Under Arbitrary Contexts
 
 Now let us proceed to a more complicated example. We can start by observing and proving that `k ≡ 0`.
 
@@ -90,7 +143,7 @@ Abort.
 
 So it didn't work. The terrifying error message you should have seen is just related to type class resolution in Coq and is not obviously helpful.
 
-So, without useful error messages to guide us, let's try to figure out what is wrong. Recall what I wrote earlier about rewriting under different contexts. We need to prove that addition is proper with respect to `≡`. It makes sense that we should need to prove this, because we can easily construct functions that are not proper. For instance, consider 
+Even without useful error messages to guide us, we can still figure out what went wrong. Recall what I wrote earlier about rewriting under different contexts. We need to prove that `≡` respects itself under the context of addition. It makes sense that we should need to prove this, because we can easily construct functions that are not proper. For instance, consider 
 
 ```coq
 Definition f x y := 
@@ -98,7 +151,7 @@ Definition f x y :=
   then 0
   else 1.
 ```
-which clearly distinguishes between `0` and `k` in general.
+which clearly distinguishes between `0` and `k` in general. For example, let `k = 5`. `f 0 0 = 0` and `f 5 5 = 1`.
 
 In the scary error message you may have noticed the term `Proper` and the notation `==>`. So we can start our search there.
 
@@ -107,7 +160,7 @@ Definition Proper {A : Type} (R : A -> A -> Prop) : A -> Prop :=
   fun a => R a a
 ```
 
-So it is the function that takes a relation `R`, a single element `a` and uses `a` for both of `R`'s inputs. We provide some more basic examples in the  We haven't gotten very fair with this function. Now note that `==>` is notation for the function `respectful`. 
+`Proper` is the function that takes a relation `R`, a single element `a` and uses `a` for both of `R`'s inputs. We provide some more basic examples in the attached code. We haven't gotten very fair with this definition. Now note that `==>` is notation for the function `respectful`. 
 
 ```coq 
 Definition respectful {A B : Type} (R : A -> A -> Prop)
@@ -115,9 +168,11 @@ Definition respectful {A B : Type} (R : A -> A -> Prop)
     fun f g => forall x y, R x y -> R' (f x) (g y)
 ```
 
-Now we have found an interesting looking definition! So this is a function that lifts relations over inputs and outputs to relations over functions. In fact if we apply `respectful` to the same `f` twice, we get the proposition
+Now we have found an interesting looking definition! `respectful` is a function that lifts relations over inputs and outputs to relations over functions. `respectful R R' f g` is true if, given any inputs `x,y` that satisfy `R`, `f x, g y` must satisfy `R'`.
+
+The specific typeclass we are interested in instantiating is the application of `Proper` to `respectful R R'`. This is equivalent to applying `respectful R R'` to the same context `K` twice. This gives us the proposition
 ```coq
-forall x y, R x y -> R' (f x) (f y)
+forall x y, R x y -> R' (K x) (K y)
 ```
 
 This should start to look like the informal definitions from the beginning of this post. Consider the following proposition
@@ -130,7 +185,7 @@ Proof.
 Qed. 
 ```
 
-Intuitively, this proposition says that given any `x` and `y` such that `x ≡ y`, then `x + 2 ≡ y + 2`. For a general rule consider the following proposition
+After introducing the first 3 variables, we have, in our context, `x,y : Z` and `H : x ≡ y`, and we have, as our goal, `x + 2 ≡ y + 2`. For a general rule consider the following proposition
 
 ```coq
   Proper (R1 ==> R2 ==> ... ==> Rn ==> Rm) f
@@ -142,7 +197,7 @@ It means that given two sequences of variables `x1 ... xn` and `y1 .. yn` such t
 ```
 So all of the relations to the left of a `==>` relate arguments and the rightmost relation relates the outputs.
 
-Now we can return to our modular aritmetic example. First let us prove that addition respects `≡` in its second argument.
+We have everything in place to begin some rewriting. Declaring the `Proper` instance has given Coq all of the tools it needs to look under the context of addition and replace the equivalent terms when we invoke the `rewrite` tactic. Now we can return to our modular arithmetic example. First let us prove that addition respects `≡` in its second argument. Note that `equiv` is the same relation as `≡`.
 
 ```coq
 Instance add_proper_r {x: Z} : Proper (equiv ==> equiv) (Z.add x).
@@ -195,6 +250,8 @@ Now we can stress test our rewriting with the following example.
 ```
 
 Note that there is only one `x` on each side of the equivalence, so once we replace all `k`'s with `0`, the proof is vastly simpler.
+
+### Monad Example
 
 Now, to wrap up I will introduce another, possibly less familiar, example where rewriting is incredibly useful. Suppose we want to model stateful computations in Coq (where our type of states is `S`), where there are no stateful operations. We can do that with the following type.
 
@@ -251,7 +308,7 @@ Now suppose we want to rewrite these equations. This would be a nice thing to ha
 First, we can lift our equivalence over `State B` to an equivalence  over `A -> State B` using the `pointwise_relation` function.
 
 ```coq
-Definition {A B : Type} (R : B -> B -> Prop) : 
+Definition pointwise_relation {A B : Type} (R : B -> B -> Prop) : 
   (A -> B) -> (A -> B) -> Prop :=
   fun f g => forall a, R (f a) (g a)
 ```
@@ -278,4 +335,10 @@ Proof.
 Qed.
 ```
 
+### Conclusion
+
+In addition to the `rewrite` tactic discussed in this post, Coq has a similar, but more powerful `setoid_rewrite` tactic. This tactic is enabled by the same typeclasses as `rewrite`, but is capable of rewriting underneath contexts like universal or existential quantifiers. As a rule of thumb, if you feel like a rewrite should work, try to use `setoid_rewrite`. To learn more about `setoid_rewrite`, checkout the relevant sections of the Coq documentation [here](https://coq.inria.fr/refman/addendum/generalized-rewriting.html).  
+
 Hopefully, you found this to be a useful introduction to rewriting in Coq. There is much more to learn, but you should have a strong enough foundation to learn it on your own. Good luck proving things!
+
+
