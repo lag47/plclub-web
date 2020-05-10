@@ -10,15 +10,15 @@ Prerequisites:
 * Basic Coq Knowledge: at least through `Relations.v` from [Software Foundations](https://softwarefoundations.cis.upenn.edu/lf-current/toc.html)
 * Basic Typeclasses Knowledge: background from any language should be fine
 
-### What Is Rewriting?
+### What is Rewriting?
 
-In this blog post, I will introduce the technique of term <em>rewriting</em>, implemented by the `rewrite` tactic in Coq. Informally, rewriting is the process of replacing a term in a mathematical proposition in a way that preserves the correctness of that statement. For instance, supposed I have a natural number `n` and way to prove that `n * 2` is even. To prove this, it suffices to show that `2 * n` is even, so we can rewrite `n * 2` into `2 * n` in such a goal. The reason we are allowed to do this is that `2 * n = n * 2`, and the reason we may want to do this is that, because of how multiplication is inductively defined, `2 * n` is an easier to work with expression. In this post, I will discuss how to use the `rewrite` tactic with arbitrary equivalence relations.
+In this blog post, I will introduce the technique of term <em>rewriting</em>, implemented by the `rewrite` tactic in Coq. Informally, rewriting is the process of replacing a term in a mathematical proposition in a way that preserves the correctness of that statement. For instance, equal terms can be used interchangeably in any context, and programs with equivalent denotations can be used interchangeably if our context only cares about there semantics and not any of their other features.
 
-In informal mathematics rewriting is so ubiquitous that it is not really even explicitly taught. We do it all the time without bothering to justify it. However, in a formal logical system like Coq, we cannot do anything without justification. In order to construct justifications for rewriting, we must first understand  exactly rewriting is. 
+In informal mathematics rewriting is so ubiquitous that it is not really even explicitly taught. We do it all the time without bothering to justify it. However, in a formal logical system like Coq, we cannot do anything without justification. In order to construct justifications for rewriting, we must first understand exactly rewriting is.
 
 Suppose, we have some relation `R : A -> A -> Prop`, two values `x y : A` such that `R x y`. We have some context `K`. Our goal is `K[x]` and we would prefer our goal to be `K[y]`. To do this we want to rewrite `x` into `y` under `K`. In order for this to be justified, we need to know that as long as we know `R x y`, we also know that `K[y]` implies `K[x]`. To introduce some other vocabularly, to say `R` is proper with respect to `K` is the same as the previous sentence.
 
-### Rewriting With =
+### Rewriting With Coq Equality
 
 The `=` relation in Coq is strong enough that it is proper under any relation. This means that, if we know `x = y`, then for any ontext `K`, we can transform a goal of `K[x]` into one of `K[y]`
 
@@ -57,7 +57,7 @@ Suppose we have an integer `k` and consider modular arithmetic modulo `k`. So ou
 
 To prove that a relation is an equivalence relation, we must show that it is reflexive, symmetry and transitive. In isolation, proving each of these properties enables useful tactics. `reflexivity` lets you discharge goals of the form `x ≡ x`, and `symmetry` lets you change goals and hypotheses from `x ≡ y` to `y ≡ x`. In order to do the most basic rewriting, all that you need is the transitive property.
 
-You can declare the typeclass instance with the following code.
+We can declare the typeclass instance with the following code.
 
 ```coq
 Instance trans_equiv : Transitive equiv.
@@ -78,7 +78,7 @@ Qed.
 
 This is just a statement of the transitive property for the relation. Run the code for yourself, and note that we can rewrite `a` into `b`, but when we try to rewrite `b` back into `a` it fails. This is because, since we only have the transitivity of this relation registered at the moment, rewriting only works in certain directions. For goals, Terms on the left side of the relation can be rewritten into terms on the right, and terms on the right side of the relation can be rewritten into terms on the left. For hypotheses each of the previous rules is reversed. 
 
-To build up some intuition practice rewriting with relations that have only been declared transitive and not symmetric. A good example is the `<=` relation.
+One good way to build up more intuition is to practice rewriting with relations that have only been declared transitive and not symmetric. A good example is the `<=` relation.
 
 The relation we are working with is symmetric as well. Registering this typeclass will allow us to rewrite in any direction in both goals and hypotheses.
 
@@ -101,7 +101,7 @@ Qed.
 
 Note that some of these rewrites would not have worked previously.
 
-In general, you can just declare the relation to be an equivalence relation in order to get all the benefits of the constituent properties without declaring them separately.
+In general, you can declare the relation to be an equivalence relation in order to get all the benefits of the constituent properties without declaring them separately.
 
 ```coq
 Instance equiv_equiv : Equivalence equiv.
@@ -141,9 +141,9 @@ Proof.
 Abort.
 ```
 
-So it didn't work. The terrifying error message you should have seen is just related to type class resolution in Coq and is not obviously helpful.
+So it didn't work. The terrifying error message you should have seen is just related to typeclass resolution in Coq and is not obviously helpful.
 
-Even without useful error messages to guide us, we can still figure out what went wrong. Recall what I wrote earlier about rewriting under different contexts. We need to prove that `≡` respects itself under the context of addition. It makes sense that we should need to prove this, because we can easily construct functions that are not proper. For instance, consider 
+Even without useful error messages to guide us, we can still figure out what went wrong. Recall what I mentioned earlier about rewriting under different contexts. We need to prove that `≡` respects itself under the context of addition. It makes sense that we should need to prove this, because we can easily construct functions that are not proper. For instance, consider 
 
 ```coq
 Definition f x y := 
@@ -251,9 +251,9 @@ Now we can stress test our rewriting with the following example.
 
 Note that there is only one `x` on each side of the equivalence, so once we replace all `k`'s with `0`, the proof is vastly simpler.
 
-### Monad Example
+### Rewriting Equivalent Notions of Computation
 
-Now, to wrap up I will introduce another, possibly less familiar, example where rewriting is incredibly useful. Suppose we want to model stateful computations in Coq (where our type of states is `S`), where there are no stateful operations. We can do that with the following type.
+To wrap up I will introduce another, possibly less familiar, example where rewriting is incredibly useful. Suppose we want to model stateful computations in Coq (where our type of states is `S`), where there are no stateful operations. We can do that with the following type.
 
 ```coq
 Definition State (A : Type) := S -> (S * A).
@@ -305,7 +305,7 @@ Qed.
 
 Now suppose we want to rewrite these equations. This would be a nice thing to have because these equations require no knowledge of the definitions of `ret` and `bind`.
 
-First, we can lift our equivalence over `State B` to an equivalence  over `A -> State B` using the `pointwise_relation` function.
+First, we can lift our equivalence over `State B` to an equivalence over `A -> State B` using the `pointwise_relation` function.
 
 ```coq
 Definition pointwise_relation {A B : Type} (R : B -> B -> Prop) : 
@@ -340,5 +340,3 @@ Qed.
 In addition to the `rewrite` tactic discussed in this post, Coq has a similar, but more powerful `setoid_rewrite` tactic. This tactic is enabled by the same typeclasses as `rewrite`, but is capable of rewriting underneath contexts like universal or existential quantifiers. As a rule of thumb, if you feel like a rewrite should work, try to use `setoid_rewrite`. To learn more about `setoid_rewrite`, checkout the relevant sections of the Coq documentation [here](https://coq.inria.fr/refman/addendum/generalized-rewriting.html).  
 
 Hopefully, you found this to be a useful introduction to rewriting in Coq. There is much more to learn, but you should have a strong enough foundation to learn it on your own. Good luck proving things!
-
-
