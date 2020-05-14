@@ -14,7 +14,7 @@ Prerequisites:
 
 In this blog post, I will introduce the technique of term <em>rewriting</em>, implemented by the `rewrite` tactic in Coq. Informally, rewriting is the process of replacing a term in a mathematical proposition in a way that preserves the correctness of that statement. For instance, equal terms can be used interchangeably in any context, and integers equivalent modulo `k` can be used interchangeable if the context cares only about their remainders when divided by `k` and not any of their other features.
 
-In informal mathematics rewriting is so ubiquitous that it is not really even explicitly taught. We do it all the time without bothering to justify it. However, in a formal logical system like Coq, we cannot do anything without justification. In order to construct justifications for rewriting, we must first understand when exactly these rewrites are justified.
+In informal mathematics, rewriting is so ubiquitous that it is not really even explicitly taught. We do it all the time without bothering to justify it. However, in a formal logical system like Coq, we cannot do anything without justification. In order to construct justifications for rewriting, we must first understand when exactly these rewrites are justified.
 
 Suppose, we have some relation `R : A -> A -> Prop`, two values `x y : A` such that `R x y`. We have some context `K`. Our goal is `K[x]` and we would prefer our goal to be `K[y]`. To do this we want to rewrite `x` into `y` under `K`. In order for this to be justified, we need to know that as long as we know `R x y`, we also know that `K[y]` implies `K[x]`. To introduce some other vocabularly, to say `R` is proper with respect to `K` is the same as the previous sentence.
 
@@ -23,9 +23,9 @@ Suppose, we have some relation `R : A -> A -> Prop`, two values `x y : A` such t
 The `=` relation in Coq is strong enough that it is proper under any relation. This means that, if we know `x = y`, then for any context `K`, we can transform a goal of `K[x]` into one of `K[y]`
 
 
-These notions of respect and proper are implemented as type classes in the Coq standard library. We will go over the exact instances we will need to provide later. For now, just keep in mind that Coq has provided a series of tactics that, when given certain type class instances, will do all of the justifications and transform your goal for you.
+This notion of properness is implemented as type classes in the Coq standard library. We will go over the exact instances we will need to provide later. For now, just keep in mind that Coq has provided a series of tactics that, when given certain type class instances, will do all of the justifications and transform your goal for you.
 
-Let's go through some concrete examples showing the strength of rewriting . Consider the following proposition and proof script
+Let's go through some concrete examples showing the strength of rewriting. Consider the following proposition and proof script:
 
 ```coq
 Goal forall (a b c d : Z), a = b -> b = c -> c = d -> a = d.
@@ -34,7 +34,7 @@ Proof.
 Qed.
 ```
 
-That is essentially just the transitivity property of equality extended to 4 elements. Note how we prove this using two rewrites instead of two applications of the transitivity property. This instance of rewriting happens when the context is simply the relation we are rewriting with. This simplifies the whole rewriting process.
+That is essentially the transitivity property of equality extended to 4 elements. Note how we prove this using two rewrites instead of two applications of the transitivity property. This instance of rewriting happens when the context is exactly the relation we are rewriting with. This simplifies the whole rewriting process.
 
 Now let's look at a slightly more complicated example. The following proposition is trivially simple with rewriting.
 
@@ -47,7 +47,7 @@ Proof.
 Qed.
 ```
 
-Unlike the previous example, it is not immediately obvious how we would prove this proposition without rewriting. In this case we are rewriting integers under the context of addition. In fact, we can rewrite using `=` under any context. This is a very useful property of the `=` relation that is, unsurprisingly, not true for arbitrary relations. Now, we will move on to discuss exactly what kind of rewriting we can do with arbitrary relations and how we can do them.
+Unlike the previous example, it is not immediately obvious how we would prove this proposition without rewriting. In this case, we are rewriting integers under the context of addition. In fact, we can rewrite using `=` under any context. This is a very useful property of the `=` relation that is, unsurprisingly, not true for arbitrary relations. Now, we will move on to discuss how to generalize rewriting to arbitrary relations.
 
 ### Rewriting Under Arbitrary Equivalences
 
@@ -74,7 +74,7 @@ Proof.
 Qed.
 ```
 
-This is just a statement of the transitive property for the relation. Run the code for yourself, and note that we can rewrite `a` into `b`, but when we try to rewrite `b` back into `a` it fails. Because we only proved this relation to be `Transitive`, we can only rewrite in the goal by replacing the value on the left of the relation with the value on the right (and vice-versa when rewriting in hypotheses). 
+This is a statement of the transitive property for the relation. Run the code for yourself, and note that we can rewrite `a` into `b`, but when we try to rewrite `b` back into `a` it fails. Because we only proved this relation to be `Transitive`, we can only rewrite in the goal by replacing the value on the left of the relation with the value on the right (and vice-versa when rewriting in hypotheses). 
 
 You can build up more intuition for this by practicing rewriting with relations that are only transitive, and not symmentric, like the `<=` relation.
 
@@ -128,7 +128,7 @@ Proof.
 Qed.
 ```
 
-Now we might want to prove some basic propositions by rewriting `k` into `0`. But follow in the companion code what happens with the following proof script.
+We might want to prove some basic propositions by rewriting `k` into `0`. But follow in the companion code what happens with the following proof script.
 
 ```coq
 Goal forall x, x + k ≡ x.
@@ -227,7 +227,7 @@ In order to rewrite in the left argument, we need to show that addition is prope
 ```coq
 Instance add_proper : Proper (equiv ==> equiv ==> equiv) Z.add.
 Proof.
-  intros x y  Hxy z w Hzw.
+  intros x y Hxy z w Hzw.
   rewrite <- Hzw. Fail rewrite Hxy. 
   rewrite Z.add_comm. rewrite Hxy. rewrite Z.add_comm.
   reflexivity.
@@ -254,7 +254,7 @@ To wrap up I will introduce another example where rewriting is incredibly useful
 ```coq
 Definition State (A : Type) := S -> (S * A).
 ```
-This captures the notion that all stateful computations require an input state to run and return an output state as well as a result. We can give this type a monadic structure with the following functions
+This captures the notion that all stateful computations require an input state and return an output state as well as a result. We can give this type a monadic structure with the following functions
 
 ```coq
 Definition ret {A} (a : A) := fun s : S => (s,a).
